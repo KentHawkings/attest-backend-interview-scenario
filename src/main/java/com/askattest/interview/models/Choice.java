@@ -1,7 +1,7 @@
 package com.askattest.interview.models;
 
-public class Choice {
-    public String text;
-    public int route = -1;
-    public int id;
+public record Choice(String text, int route, int id) {
+    public boolean isEndOfSurvey() {
+        return route == -1;
+    }
 }

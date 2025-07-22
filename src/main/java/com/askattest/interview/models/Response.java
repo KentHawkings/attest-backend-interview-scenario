@@ -1,9 +1,9 @@
 package com.askattest.interview.models;
 
-public class Response {
-    public int respondent;
-    public int question;
-    public int choice;
+public record Response(int respondent, int question, int choice) {
+    public boolean fromRespondent(int respondentId) {
+        return respondent == respondentId;
+    }
 
     @Override
     public String toString() {

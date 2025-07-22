@@ -1,37 +1,63 @@
 package com.askattest.interview.repository;
 
-import com.askattest.interview.models.Survey;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.net.URL;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.askattest.interview.models.Response;
+import com.askattest.interview.models.Survey;
+import com.askattest.interview.service.ResponseService;
+import com.askattest.interview.service.SurveyService;
 
 public class SurveyRepo {
-    public List<Survey> surveys;
+    private final SurveyService surveyService;
+    private final ResponseService responseService;
 
-    public SurveyRepo() throws IOException {
-        this.surveys = Arrays.asList(SurveyRepo.loadSurvey("survey.json"));
+    private List<Survey> surveys;
+    private List<Response> responses;
+
+    public SurveyRepo(SurveyService surveyService, ResponseService responseService) {
+        this.surveyService = surveyService;
+        this.responseService = responseService;
     }
 
-    public Survey surveyById(int surveyId) {
-        return surveys.stream().filter(survey -> survey.id == surveyId)
-                .findFirst()
-                .orElse(null);
+    public Optional<Survey> surveyById(int surveyId) {
+        return getSurveys().stream()
+                .filter(survey -> survey.id() == surveyId)
+                .findFirst();
     }
 
-    public List<Survey> listSurveys() {
-        return this.surveys;
+    public Map<Integer, Integer> calculatePayoutsForSurvey(Survey survey) {
+        Map<Integer, Integer> questionPayouts = survey.getQuestionPayouts();
+
+        return getResponses().stream()
+                .collect(Collectors.groupingBy(
+                        Response::respondent,
+                        Collectors.summingInt(response -> questionPayouts.getOrDefault(response.question(), 0))));
     }
 
-    public static Survey loadSurvey(String filename) throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            URL filenameUrl = SurveyRepo.class.getResource("/survey-data/" + filename);
-            return objectMapper.readValue(filenameUrl, Survey.class);
-        } catch (IOException e) {
-            throw new IOException("Could not load survey from file: " + filename, e);
+    public Map<Integer, Long> getQuestionsAnsweredPerRespondent(Survey survey) {
+        return getSurveyResponses(survey).collect(Collectors.groupingBy(Response::respondent, Collectors.counting()));
+    }
+
+    private Stream<Response> getSurveyResponses(Survey survey) {
+        var questionIds = survey.getQuestionIds();
+        return getResponses().stream().filter(response -> questionIds.contains(response.question()));
+    }
+
+    private List<Survey> getSurveys() {
+        if (surveys == null) {
+            surveys = surveyService.listSurveys();
         }
+        return surveys;
+    }
+
+    private List<Response> getResponses() {
+        if (responses == null) {
+            responses = responseService.listResponses();
+        }
+        return responses;
     }
 }
